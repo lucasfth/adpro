@@ -212,11 +212,18 @@ def forAll[A](as: Gen[A])(f: A => Boolean): Prop =
 def forAllNotSized[A] = forAll[A]
   
 extension (self: Prop)
-  infix def && (that: Prop): Prop = (maxSize, tcs, rng) => 
-    ???
+  infix def && (that: Prop): Prop = (maxSize, tcs, rng) =>
+    val res1 = self(maxSize, tcs, rng)
+    val res2 = that(maxSize, tcs, rng)
+    if res1.isFalsified then res1
+    else if res2.isFalsified then res2
+    else Passed
   
   infix def || (that: Prop): Prop = (maxSize, tcs, rng) =>
-    ???
+    val res1 = self(maxSize, tcs, rng)
+    val res2 = that(maxSize, tcs, rng)
+    if res1.isFalsified && res2.isFalsified then res1
+    else Passed
 
 
 // Exercise 14
@@ -226,13 +233,13 @@ opaque type SGen[+A] = Int => Gen[A]
 
 extension [A](self: Gen[A])
   def unsized: SGen[A] =
-    ???
+    _ => self
 
 // Exercise 15
 
 extension [A](self: Gen[A]) 
   def list: SGen[List[A]] =
-    ???
+    n => self.listOfN(n)
 
 // A sized implementation of prop, takes MaxSize to generate
 // test cases of given size.  
@@ -282,15 +289,21 @@ val nonEmptyList: SGen[List[Int]] =
 object Exercise_16:
   
   import SGen.*
+  import SGen.Prop.{forAll as sgForAll}
 
   // The properties are put into a function taking `minimum` as argument to
   // allow the teachers to test them with different mutants of `minimum`.
   
   def p1Min(minimum: List[Int] => Int): Prop = 
-    ???
+    sgForAll(nonEmptyList) { lst =>
+      lst.min == minimum(lst)
+    }
   
   def p2Min(minimum: List[Int] => Int): Prop = 
-    ???
+    sgForAll(nonEmptyList) { lst =>
+      val min = minimum(lst)
+      lst.forall(_ >= min)
+    }
 
 end Exercise_16
 
