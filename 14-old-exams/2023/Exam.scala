@@ -73,7 +73,10 @@ object Streaming:
 
 
   def fViaFold (l: LazyList[Int]): Int = 
-    ???
+    l.foldRight(0)((elem, acc) => if elem % 2 == 1 then acc + 1 else acc)
+
+  import adpro.laziness.LazyList.*
+  val testLazyList = from(4).take(2)
 
 end Streaming
 
@@ -116,19 +119,21 @@ object Parsing:
       .map { (h,t) => h::t }
 
   lazy val longestLine: Parser[Int] = 
-    ???
-
-
+    parser.map(_.map(_.size).maxOption.getOrElse(0))
+    
   /* QUESTION 3 ######################################################
-   * Implement a parser of type Parser[Boolean] that parses a CSV
-   * input and returns true if all lines have the same number of
-   * elements.  It should return Right(False) for the above example.
-   *
-   * NB. This question does not require that you answered QUESTION 2.
-   */
-
-  val allLinesTheSame: Parser[Boolean] = 
-    ???
+  * Implement a parser of type Parser[Boolean] that parses a CSV
+  * input and returns true if all lines have the same number of
+  * elements.  It should return Right(False) for the above example.
+  *
+  * NB. This question does not require that you answered QUESTION 2.
+  */
+  
+  val allLinesTheSame: Parser[Boolean] =
+    parser.map(lines =>
+      lines.forall(line => line.size == lines.last.size))
+      
+  val testLists = "1,2,3 , 5,4 \n 42,42"
 
 end Parsing
 
@@ -181,11 +186,10 @@ object Game:
   type Strategy = Dist[Move]
 
   lazy val Alice: Strategy =
-    ???
+    Pigaro.uniform(Rock, Paper, Scissors)
 
   lazy val Bob: Strategy =
-    ???
-
+    Pigaro.uniform(Rock, Paper)
 
 
   /* QUESTION 5 ######################################################
@@ -198,9 +202,10 @@ object Game:
    * Answering QUESTION 4 is not required to answer this one.
    */
   def game (player1: Strategy, player2: Strategy): Dist[Result] =
-    ???
-
-
+    for
+      move1 <- player1
+      move2 <- player2
+    yield winner(move1, move2)
 
   /* QUESTION 6 ######################################################
    * Obtain a sample of 10000 outcomes and  estimate the  probability
@@ -215,7 +220,9 @@ object Game:
     = spire.random.rng.SecureJava.apply
 
   lazy val aliceFraction: Double = 
-    ???
+    val dist = game(Alice, Bob)
+    val samples = dist.sample(10000)
+    samples.pr(Some(P1))
 
 end Game
 
@@ -302,8 +309,9 @@ object RL:
      */
 
     property("00 Null update on null table 2x3") = 
-      ???
-
+      var t = qZero(2, 3)
+      var alt = update(t, 0,0)(0,0)
+      t == alt
 
 
     /* QUESTION 8 ####################################################
@@ -321,7 +329,27 @@ object RL:
      */
 
     property("01 Null update on null table 2x3") = 
-      ???
+      given Arbitrary[Q[Int, Int]] = Arbitrary(qGen(2,3))
+      forAll { (table: Q[Int, Int]) =>
+        given Arbitrary[Int] = Arbitrary(Gen.choose(0, table.size-1))
+        forAll { (state: Int) =>
+          given Arbitrary[Int] = Arbitrary(Gen.choose(0, table(0).size-1))
+          forAll { (action: Int) =>
+            val reward = table(state)(action)
+            val alt = update(table, state, action)(reward, 0.0)
+            alt == table
+          }
+        }
+        // Another valid answer
+        // forAll { (table: Q[Int, Int]) =>
+        //   val state = Gen.choose(0, table.size-1).sample.get
+        //   val action = Gen.choose(0, table(0).size-1).sample.get
+        //   val reward = table(state)(action)
+        //   val alt = update(table, state, action)(reward, 0.0)
+  
+        //   alt == table
+        // }
+      }
 
   end NullUpdatesSpec
 
@@ -355,6 +383,11 @@ object RL:
   
   def updateWithLens[State, Action] (q: Q[State, Action], s: State, a: Action)
     (reward: Double, estimate: Double): Q[State, Action] =
-    ???
+      val l = lens(s, a)
+      val qsa = l.getOption(q).get
+      val value = (1.0 - α) * qsa + α * (reward + γ * estimate) /* MARK */
+      l.replace(value)(q)
 
+    // val av    = q(state) + (action -> value)
+    // q + (state -> av)
 end RL
